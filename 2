@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Угадай высоту звука</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background-color: black;
+        }
+ 
+        #game-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+ 
+        #scale {
+            position: relative;
+            width: 50px;
+            height: 90vh;
+            display: flex;
+            flex-direction: column;
+        }
+ 
+        .square {
+            flex: 1;
+            cursor: pointer;
+            border: none;
+            border-radius: 5px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1), 
+                      inset 0 8px 12px rgba(255,255,255,0.3),
+                      inset 0 -4px 8px rgba(0,0,0,0.4);
+            border: 1px solid rgba(255,255,255,0.1);
+            transition: all 0.2s ease;
+        }
+ 
+        .square:hover {
+            box-shadow: 0 6px 10px rgba(0,0,0,0.2), 
+                      inset 0 10px 16px rgba(255,255,255,0.4),
+                      inset 0 -6px 12px rgba(0,0,0,0.5);
+        }
+ 
+        .square:active {
+            box-shadow: inset 0 8px 16px rgba(0,0,0,0.4),
+                      inset 0 -4px 8px rgba(255,255,255,0.2);
+            filter: brightness(0.9);
+        }
+ 
+        .line {
+            position: absolute;
+            width: 100%;
+            height: 4px;
+            background: linear-gradient(to right, rgba(255, 255, 255, 0), white, rgba(255, 255, 255, 0));
+            transition: top 1s ease-in-out;
+        }
+ 
+        @keyframes ringAnimation {
+            0% { transform: scale(0); opacity: 1; }
+            100% { transform: scale(1); opacity: 0; }
+        }
+ 
+        .ring {
+            position: absolute;
+            border-radius: 50%;
+            border: 2px solid;
+            animation: ringAnimation 1.5s ease-out;
+        }
+    </style>
+</head>
+<body>
+    <div id="game-container">
+        <div id="scale"></div>
+    </div>
+ 
+    <script>
+        const scale = document.getElementById('scale');
+        let squares = 2;
+        let targetFrequency = 0;
+        let targetPosition = 0;
+ 
+        function getColor(position, total) {
+            const hue = (position / (total - 1)) * 240;
+            return `hsl(${hue}, 100%, 50%)`;
+        }
+ 
+        function playSound(frequency) {
+            const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+ 
+            oscillator.type = 'sine';
+            oscillator.frequency.setValueAtTime(frequency, audioContext.currentTime);
+ 
+            gainNode.gain.setValueAtTime(1, audioContext.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + 1.5);
+ 
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            oscillator.start();
+            oscillator.stop(audioContext.currentTime + 1.5);
+        }
+ 
+        function createScale() {
+            scale.innerHTML = '';
+            for (let i = 0; i < squares; i++) {
+                const square = document.createElement('div');
+                square.classList.add('square');
+                square.style.backgroundColor = getColor(i, squares);
+                square.addEventListener('click', (e) => handleClick(e, i));
+                scale.appendChild(square);
+            }
+        }
+ 
+        function createRing(x, y, color) {
+            const ring = document.createElement('div');
+            ring.classList.add('ring');
+            ring.style.borderColor = color;
+            ring.style.left = `${x}px`;
+            ring.style.top = `${y}px`;
+            document.body.appendChild(ring);
+ 
+            setTimeout(() => {
+                ring.remove();
+            }, 1500);
+        }
+ 
+        function handleClick(event, clickedSquare) {
+            const clickY = event.clientY - scale.getBoundingClientRect().top;
+ 
+            const line = document.createElement('div');
+            line.classList.add('line');
+            line.style.top = `${clickY}px`;
+            scale.appendChild(line);
+ 
+            const targetY = (1 - (targetFrequency / 1000)) * scale.clientHeight;
+            setTimeout(() => {
+                line.style.top = `${targetY}px`;
+            }, 10);
+ 
+            setTimeout(() => {
+                line.remove();
+            }, 1100);
+ 
+            const clickX = event.clientX;
+            const clickYGlobal = event.clientY;
+            createRing(clickX, clickYGlobal, getColor(clickedSquare, squares));
+ 
+            const clickedPosition = (clickedSquare / squares) * scale.clientHeight;
+            const error = Math.abs(targetY - clickedPosition);
+ 
+            squares = error < (scale.clientHeight / squares) ? squares + 1 : Math.max(2, squares - 1);
+ 
+            setTimeout(() => {
+                createScale();
+                startRound();
+            }, 2000);
+        }
+ 
+        function startRound() {
+            targetFrequency = Math.floor(Math.random() * 1001);
+            playSound(targetFrequency);
+        }
+ 
+        createScale();
+        startRound();
+    </script>
+</body>
+</html>
+v
